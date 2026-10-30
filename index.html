@@ -1,0 +1,326 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Detector de Estilos 3D</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: una palabra arriba → cuadrícula 3D de Reddin (4 básicos × más/menos efectivo) + ficha del estilo detectado */
+:root{
+  --bg:#f3f5f7; --surface:#ffffff; --ink:#18212b; --muted:#5d6b78; --line:#d9dfe5;
+  --accent:#1f4f8a;
+  --sep:#6b7f93; --rel:#2f8a5b; --ded:#b8562a; --int:#5a4bb0;
+  --sep-soft:#e6ebf0; --rel-soft:#e2f2e9; --ded-soft:#f7e7de; --int-soft:#e9e6f7;
+  --display:"Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body:"IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono:"IBM Plex Mono", ui-monospace, Menlo, monospace;
+}
+@media (prefers-color-scheme: dark){:root:not([data-theme="light"]){
+  --bg:#11161c; --surface:#19212a; --ink:#e7edf3; --muted:#9aa8b5; --line:#2c3743;
+  --accent:#7fb0ec;
+  --sep:#9fb2c4; --rel:#5fc28c; --ded:#e58a5c; --int:#9d90ec;
+  --sep-soft:#222c36; --rel-soft:#18302a; --ded-soft:#36231a; --int-soft:#252240;
+  color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#11161c; --surface:#19212a; --ink:#e7edf3; --muted:#9aa8b5; --line:#2c3743;
+  --accent:#7fb0ec;
+  --sep:#9fb2c4; --rel:#5fc28c; --ded:#e58a5c; --int:#9d90ec;
+  --sep-soft:#222c36; --rel-soft:#18302a; --ded-soft:#36231a; --int-soft:#252240;
+  color-scheme:dark}
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--body);font-size:15px;line-height:1.5}
+.wrap{max-width:980px;margin:0 auto;padding-block:28px 48px;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));display:grid;gap:24px}
+header{display:grid;gap:6px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted)}
+h1{font-family:var(--display);font-weight:700;font-size:clamp(28px,5vw,42px);line-height:1.05;margin:0;text-wrap:balance}
+.lede{color:var(--muted);margin:0;max-width:60ch}
+form{display:flex;gap:10px;flex-wrap:wrap}
+#palabra{flex:1 1 240px;min-width:0;font:500 20px var(--body);padding:12px 16px;border:2px solid var(--line);border-radius:10px;background:var(--surface);color:var(--ink)}
+#palabra:focus{outline:none;border-color:var(--accent)}
+button{font:600 15px var(--body);border-radius:10px;padding:12px 18px;cursor:pointer;border:2px solid var(--accent);background:var(--accent);color:var(--surface)}
+button.ghost{background:transparent;color:var(--accent)}
+button:focus-visible,.chip:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+button[disabled]{opacity:.55;cursor:wait}
+.chips{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.chips span{font-size:13px;color:var(--muted)}
+.chip{font:500 13px var(--body);padding:5px 11px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink);cursor:pointer}
+.chip:hover{border-color:var(--accent)}
+.main{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.1fr);gap:24px;align-items:start}
+@media (max-width:760px){.main{grid-template-columns:1fr}}
+/* Cuadrícula 3D */
+.grid-box{display:grid;gap:8px}
+.axis{font-family:var(--mono);font-size:11px;color:var(--muted);letter-spacing:.05em}
+.square{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.basic{border-radius:10px;padding:8px;display:grid;gap:6px;border:1px solid var(--line);background:var(--surface)}
+.basic h3{margin:0;font:600 12px var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.cell{border-radius:7px;padding:8px 10px;display:grid;gap:1px;border:2px solid transparent;transition:transform .2s ease,border-color .2s ease}
+.cell b{font:600 14px var(--body)}
+.cell small{font:400 11px var(--mono);color:var(--muted)}
+.cell.on{transform:scale(1.03);border-color:currentColor}
+.cell.alt{border-style:dashed;border-color:currentColor}
+.k-sep{color:var(--sep)} .k-sep .cell{background:var(--sep-soft)}
+.k-rel{color:var(--rel)} .k-rel .cell{background:var(--rel-soft)}
+.k-ded{color:var(--ded)} .k-ded .cell{background:var(--ded-soft)}
+.k-int{color:var(--int)} .k-int .cell{background:var(--int-soft)}
+.cell b,.cell small{color:var(--ink)}
+.cell small{color:var(--muted)}
+.legend{font-size:12px;color:var(--muted);display:flex;gap:14px;flex-wrap:wrap}
+.legend i{display:inline-block;width:14px;height:10px;border:2px solid var(--muted);border-radius:3px;vertical-align:middle;margin-right:4px}
+.legend i.d{border-style:dashed}
+/* Ficha */
+.card{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px;display:grid;gap:14px;min-width:0}
+.res-top{display:grid;gap:4px}
+.res-word{font-family:var(--mono);font-size:13px;color:var(--muted)}
+.res-style{font-family:var(--display);font-size:clamp(26px,4vw,34px);font-weight:700;line-height:1.1;margin:0}
+.pills{display:flex;gap:6px;flex-wrap:wrap}
+.pill{font:500 12px var(--mono);padding:3px 9px;border-radius:999px;border:1px solid currentColor}
+.pill.good{color:var(--rel)} .pill.bad{color:var(--ded)}
+.ped{display:flex;gap:10px;font-family:var(--mono);font-size:13px;font-variant-numeric:tabular-nums}
+.ped span{padding:4px 8px;border-radius:6px;background:var(--bg)}
+dl{margin:0;display:grid;gap:10px}
+dt{font:600 11px var(--mono);letter-spacing:.07em;text-transform:uppercase;color:var(--muted)}
+dd{margin:2px 0 0}
+.src{font-size:12px;color:var(--muted);border-top:1px solid var(--line);padding-top:10px;display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:center}
+.src button{padding:7px 12px;font-size:13px}
+.empty{color:var(--muted)}
+.status{font-size:14px;color:var(--muted);min-height:1.5em}
+.hist{display:flex;flex-wrap:wrap;gap:6px}
+footer{font-size:12px;color:var(--muted)}
+@media (prefers-reduced-motion:reduce){.cell{transition:none}}
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Teoría 3D · W. J. Reddin · Curso LAP</div>
+    <h1>Detector de Estilos 3D</h1>
+    <p class="lede">Escribe una palabra que describa una conducta y te digo a cuál de los 8 estilos gerenciales se parece, con su contraparte efectiva o menos efectiva.</p>
+  </header>
+
+  <form id="f" autocomplete="off">
+    <input id="palabra" name="palabra" placeholder="Ej. reglas, imponer, armonía…" aria-label="Palabra a analizar" maxlength="40">
+    <button type="submit" id="go">Detectar</button>
+  </form>
+  <div class="chips" id="ejemplos"><span>Prueba:</span></div>
+
+  <div class="main">
+    <section class="grid-box" aria-label="Cuadrícula de los 8 estilos">
+      <div class="axis">↑ Orientación a Relaciones (OR) alta</div>
+      <div class="square" id="square"></div>
+      <div class="axis" style="text-align:right">Orientación a la Tarea (OT) alta →</div>
+      <div class="legend"><span><i></i>Estilo detectado</span><span><i class="d"></i>Contraparte (mismo estilo básico)</span></div>
+    </section>
+
+    <section class="card" id="card" aria-live="polite"></section>
+  </div>
+
+  <div>
+    <div class="eyebrow" style="margin-bottom:6px">Palabras que has probado</div>
+    <div class="hist" id="hist"><span class="empty" style="font-size:13px">Aún ninguna.</span></div>
+  </div>
+
+  <footer>El diccionario cubre unas 150 palabras de conducta. Si una palabra no está, puedes preguntarle a Claude. La efectividad real depende de la situación: el mismo comportamiento puede ser efectivo en un caso y no en otro.</footer>
+</div>
+
+<script>
+const ESTILOS = {
+  desertor:{n:"Desertor",b:"sep",bn:"Separado",ef:false,ped:[0,0,"−"],clave:"Indiferencia",
+    desc:"Poco interés en la tarea y en las personas, en una situación que pide más. Se retira, evita compromisos y a veces estorba.",
+    conducta:"Deja pasar los problemas sin actuar y hace lo mínimo.",par:"burocrata"},
+  burocrata:{n:"Burócrata",b:"sep",bn:"Separado",ef:true,ped:[0,0,"+"],clave:"Reglas",
+    desc:"Baja orientación a tarea y relaciones, pero apropiada: sigue normas y procedimientos que dan orden y control.",
+    conducta:"Aplica el procedimiento con precisión y documenta todo.",par:"desertor"},
+  misionero:{n:"Misionero",b:"rel",bn:"Relacionado",ef:false,ped:[0,1,"−"],clave:"Armonía",
+    desc:"Pone la armonía por encima de todo. Cede para evitar el conflicto aunque se sacrifique el resultado.",
+    conducta:"Cambia su respuesta correcta para no discutir con el equipo.",par:"promotor"},
+  promotor:{n:"Promotor",b:"rel",bn:"Relacionado",ef:true,ped:[0,1,"+"],clave:"Desarrollar",
+    desc:"Confía en las personas y las desarrolla. Escucha, motiva y crea un ambiente donde la gente crece.",
+    conducta:"Escucha a su colaborador y lo ayuda a encontrar su propia solución.",par:"misionero"},
+  autocrata:{n:"Autócrata",b:"ded",bn:"Dedicado",ef:false,ped:[1,0,"−"],clave:"Imponer",
+    desc:"Solo importa la tarea y la impone sin tomar en cuenta a la gente. Genera miedo o resistencia.",
+    conducta:"Da la orden sin explicar y no acepta otra opinión.",par:"benevolo"},
+  benevolo:{n:"Autócrata benévolo",b:"ded",bn:"Dedicado",ef:true,ped:[1,0,"+"],clave:"Resultados",
+    desc:"Sabe lo que quiere y cómo lograrlo. Dirige con firmeza, sin generar resentimiento.",
+    conducta:"Fija la meta, persuade al equipo y da seguimiento hasta cumplirla.",par:"autocrata"},
+  transaccion:{n:"De transacción",b:"int",bn:"Integrado",ef:false,ped:[1,1,"−"],clave:"Aparentar",
+    desc:"Combina tarea y relaciones donde no hace falta, o solo en apariencia. Busca dejar contentos a todos y no cierra decisiones.",
+    conducta:"Parte la diferencia entre dos posturas para que nadie se moleste.",par:"ejecutivo"},
+  ejecutivo:{n:"Ejecutivo",b:"int",bn:"Integrado",ef:true,ped:[1,1,"+"],clave:"Equipo + resultados",
+    desc:"Integra tarea y personas cuando la situación lo pide. Fija estándares altos y compromete al equipo con ellos.",
+    conducta:"Involucra al equipo en la decisión y todos se comprometen con la meta.",par:"transaccion"}
+};
+
+const DIC = {
+  desertor:"indiferencia indiferente apatia apatico desinteres desinteresado evadir evasion ausente ausencia pasivo pasividad desconectado abandono abandonar flojera flojo desmotivado desmotivacion aislado aislamiento quejarse queja estorbar obstaculizar sabotear minimo retirarse resignado resignacion desgano desanimo inercia omision descuido negligencia",
+  burocrata:"reglas regla normas norma reglamento procedimiento procedimientos proceso orden politicas politica documentacion documentar formato formatos manual protocolo cumplimiento rutina metodo metodico precision preciso lineamientos tramite tramites registro auditoria estandarizar sistematico disciplina formalidad puntualidad archivo calidad",
+  misionero:"armonia complacer complaciente ceder agradar amabilidad amable paz consentir tolerancia aprobacion simpatia suavizar evitar conflicto amistad bonachon permisivo ingenuo condescendiente sumiso blando bondad cordialidad",
+  promotor:"desarrollar desarrollo confianza motivar motivacion inspirar capacitar capacitacion escuchar escucha apoyo apoyar crecimiento potencial coaching mentor empatia reconocimiento reconocer talento aprendizaje enseñar ensenar guiar acompañar acompanar fomentar empoderar paciencia",
+  autocrata:"imponer imposicion mandar ordenar castigo castigar amenaza amenazar miedo presion presionar dominar dominio exigir gritar obedecer obediencia autoritario intimidar sancion sancionar rigidez rigido terquedad terco inflexible prepotencia prepotente tirano represion humillar",
+  benevolo:"resultados resultado decision decidir dirigir direccion metas meta firmeza firme eficiencia eficaz productividad iniciativa energia objetivo objetivos rumbo logro lograr persuadir convencer seguridad plazos determinacion ejecutar ejecucion enfoque supervisar seguimiento planear planeacion organizar",
+  transaccion:"aparentar apariencia negociar negociacion regatear conceder concesion indeciso indecision ambiguo ambiguedad componenda intercambio politiquear acomodar acomodarse quedar bien medias tintas tibio tibieza oportunista contentar diplomacia diplomatico calculador",
+  ejecutivo:"equipo integracion integrar colaboracion colaborar participacion participar compromiso comprometer sinergia liderazgo lider alineacion alinear vision coordinacion coordinar retroalimentacion excelencia estandares cooperacion corresponsabilidad empoderamiento consenso delegar"
+};
+const IDX = [];
+for (const [k,txt] of Object.entries(DIC)) for (const w of txt.split(/\s+/)) if (w) IDX.push([w,k]);
+
+const norm = s => s.toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g,"").replace(/[^a-zñ ]/g,"").trim();
+
+function buscar(palabra){
+  const p = norm(palabra);
+  if (!p) return null;
+  const hits = {};
+  for (const [w,k] of IDX){
+    let s = 0;
+    if (w === p) s = 3;
+    else if (p.length >= 4 && w.length >= 4 && (w.startsWith(p.slice(0,Math.max(4,p.length-2))) || p.startsWith(w.slice(0,Math.max(4,w.length-2))))) s = 1;
+    if (s) hits[k] = Math.max(hits[k]||0, s);
+  }
+  const orden = Object.entries(hits).sort((a,b)=>b[1]-a[1]);
+  if (!orden.length) return null;
+  return {estilo:orden[0][0], exacto:orden[0][1]===3, otros:orden.slice(1).map(o=>o[0])};
+}
+
+/* ---------- Render ---------- */
+const BASICOS = [["rel","Relacionado",["promotor","misionero"]],["int","Integrado",["ejecutivo","transaccion"]],
+                 ["sep","Separado",["burocrata","desertor"]],["ded","Dedicado",["benevolo","autocrata"]]];
+const square = document.getElementById("square");
+function pintarCuadro(on, alt){
+  square.innerHTML = "";
+  for (const [k,nom,est] of BASICOS){
+    const box = document.createElement("div");
+    box.className = "basic k-"+k;
+    box.innerHTML = `<h3>${nom}</h3>`;
+    for (const e of est){
+      const c = document.createElement("div");
+      c.className = "cell" + (e===on?" on":"") + (e===alt?" alt":"");
+      c.innerHTML = `<b>${ESTILOS[e].n}</b><small>${ESTILOS[e].ef?"Más efectivo":"Menos efectivo"} · ${ESTILOS[e].clave}</small>`;
+      box.append(c);
+    }
+    square.append(box);
+  }
+}
+
+const card = document.getElementById("card");
+let sampleFn = null, ultimo = "";
+
+function ficha(palabra, key, fuente, extra){
+  const e = ESTILOS[key], par = ESTILOS[e.par];
+  const ped = e.ped.map((v,i)=> i<2 ? ["OT","OR"][i]+" "+(v?"alta":"baja") : "E "+(v==="+"?"más":"menos")).map(t=>`<span>${t}</span>`).join("");
+  card.innerHTML = `
+    <div class="res-top">
+      <div class="res-word">«${esc(palabra)}» se parece a</div>
+      <h2 class="res-style" style="color:var(--${e.b})">${e.n}</h2>
+      <div class="pills">
+        <span class="pill" style="color:var(--${e.b})">${e.bn}</span>
+        <span class="pill ${e.ef?"good":"bad"}">${e.ef?"Más efectivo":"Menos efectivo"}</span>
+        <span class="pill" style="color:var(--muted)">Clave: ${e.clave}</span>
+      </div>
+    </div>
+    <div class="ped">${ped}</div>
+    <dl>
+      ${extra?.porque ? `<div><dt>Por qué esta palabra</dt><dd>${esc(extra.porque)}</dd></div>` : ""}
+      <div><dt>Qué describe</dt><dd>${e.desc}</dd></div>
+      <div><dt>Conducta típica</dt><dd>${esc(extra?.conducta || e.conducta)}</dd></div>
+      <div><dt>${e.ef?"Si se usa en la situación equivocada":"Su versión efectiva"}</dt><dd><b>${par.n}</b>: ${par.desc}</dd></div>
+      ${extra?.otros?.length ? `<div><dt>También podría ser</dt><dd>${extra.otros.map(o=>ESTILOS[o]?.n||o).join(", ")}</dd></div>` : ""}
+    </dl>
+    <div class="src"><span>${fuente}</span>${sampleFn && !fuente.startsWith("Claude") ? `<button class="ghost" type="button" id="opinion">Segunda opinión de Claude</button>`:""}</div>`;
+  pintarCuadro(key, e.par);
+  const b = document.getElementById("opinion");
+  if (b) b.onclick = () => preguntarClaude(palabra);
+}
+
+function sinResultado(palabra){
+  pintarCuadro(null,null);
+  card.innerHTML = `
+    <div class="res-top"><div class="res-word">«${esc(palabra)}»</div>
+    <h2 class="res-style" style="font-size:24px">No está en el diccionario</h2></div>
+    <p class="empty" style="margin:0">${sampleFn ? "Claude puede analizarla y decirte a qué estilo se parece." : "Prueba con un sinónimo o con una de las palabras de ejemplo."}</p>
+    ${sampleFn ? `<div><button type="button" id="askc">Preguntar a Claude</button></div>`:""}
+    <div class="status" id="st"></div>`;
+  const b = document.getElementById("askc");
+  if (b) b.onclick = () => preguntarClaude(palabra);
+}
+
+async function preguntarClaude(palabra){
+  const st = document.getElementById("st") || card.appendChild(Object.assign(document.createElement("div"),{className:"status",id:"st"}));
+  card.querySelectorAll("button").forEach(b=>b.disabled=true);
+  st.textContent = "Claude está pensando…";
+  const prompt = `Eres experto en la Teoría 3D de W. J. Reddin (estilos gerenciales). Los 8 estilos son:
+- desertor (Separado, menos efectivo): indiferencia, se retira, estorba.
+- burocrata (Separado, más efectivo): reglas, procedimientos, orden.
+- misionero (Relacionado, menos efectivo): armonía a toda costa, cede para evitar conflicto.
+- promotor (Relacionado, más efectivo): desarrolla gente, confianza, escucha.
+- autocrata (Dedicado, menos efectivo): impone, solo la tarea, genera miedo.
+- benevolo (Autócrata benévolo, Dedicado, más efectivo): resultados, dirige con firmeza sin resentimiento.
+- transaccion (De transacción, Integrado, menos efectivo): aparenta, busca dejar contentos a todos, no cierra decisiones.
+- ejecutivo (Integrado, más efectivo): equipo + resultados, estándares altos, compromiso.
+
+Palabra a clasificar: "${palabra}"
+
+Responde SOLO con JSON así: {"estilo":"<una clave de la lista>","alternativo":"<otra clave o vacío>","porque":"<una oración en español explicando la relación>","conducta":"<un ejemplo breve de conducta observable de un gerente, en español>"}
+Si la palabra no describe ninguna conducta, usa el estilo más cercano y dilo en "porque".`;
+  try{
+    const r = await sampleFn.json(prompt,{modelTier:"quick"});
+    const k = String(r?.estilo||"").toLowerCase().trim();
+    if (!ESTILOS[k]) throw {code:"invalid_json"};
+    const alt = ESTILOS[String(r.alternativo||"").toLowerCase().trim()] ? [String(r.alternativo).toLowerCase().trim()] : [];
+    ficha(palabra, k, "Claude analizó esta palabra", {porque:r.porque, conducta:r.conducta, otros:alt});
+    agregarHist(palabra, k);
+  }catch(e){
+    card.querySelectorAll("button").forEach(b=>b.disabled=false);
+    const msg = {not_granted:"No se dio permiso para usar Claude en esta página.",sampling_disabled:"Claude no está disponible para esta cuenta.",
+      rate_limited:"Demasiadas consultas seguidas. Espera un momento y vuelve a intentar.",invalid_json:"La respuesta no se pudo leer. Intenta de nuevo.",
+      refused:"Claude no pudo analizar esa palabra. Prueba con otra."}[e?.code] || "No se pudo consultar a Claude. Intenta de nuevo.";
+    st.textContent = msg;
+    if (e?.code==="not_granted"||e?.code==="sampling_disabled"){ sampleFn=null; card.querySelectorAll("#askc,#opinion").forEach(b=>b.hidden=true); }
+  }
+}
+
+const hist = document.getElementById("hist"); const vistos = [];
+function agregarHist(palabra,k){
+  const n = norm(palabra); const i = vistos.findIndex(v=>v.n===n);
+  if (i>=0) vistos.splice(i,1);
+  vistos.unshift({n, p:palabra, k}); vistos.length = Math.min(vistos.length,12);
+  hist.innerHTML = "";
+  for (const v of vistos){
+    const c = document.createElement("button"); c.type="button"; c.className="chip";
+    c.style.borderColor = `var(--${ESTILOS[v.k].b})`;
+    c.textContent = `${v.p} → ${ESTILOS[v.k].n}`;
+    c.onclick = () => { input.value = v.p; detectar(v.p); };
+    hist.append(c);
+  }
+}
+
+function esc(s){return String(s??"").replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+
+const input = document.getElementById("palabra");
+function detectar(palabra){
+  palabra = palabra.trim().split(/\s+/).slice(0,3).join(" ");
+  if (!palabra) return;
+  ultimo = palabra;
+  const r = buscar(palabra);
+  if (r){ ficha(palabra, r.estilo, r.exacto ? "Encontrada en el diccionario" : "Coincidencia aproximada en el diccionario", {otros:r.otros}); agregarHist(palabra, r.estilo); }
+  else sinResultado(palabra);
+}
+document.getElementById("f").addEventListener("submit", e => { e.preventDefault(); detectar(input.value); });
+
+const ej = document.getElementById("ejemplos");
+for (const w of ["reglas","imponer","armonía","desarrollar","resultados","aparentar","equipo","indiferencia"]){
+  const c = document.createElement("button"); c.type="button"; c.className="chip"; c.textContent=w;
+  c.onclick = () => { input.value = w; detectar(w); };
+  ej.append(c);
+}
+
+/* Estado inicial: ejemplo cargado */
+input.value = "reglas";
+detectar("reglas");
+
+/* Claude, si está disponible */
+(async () => {
+  try{
+    const s = await window.claude?.use?.("sample");
+    if (s){ sampleFn = s; if (ultimo) detectar(ultimo); }
+  }catch(_){}
+})();
+</script>
+
+</body></html>
